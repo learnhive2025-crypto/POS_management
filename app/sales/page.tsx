@@ -12,10 +12,20 @@ type SaleItem = {
   name: string;
 };
 
-/* ---------------- BEEP ---------------- */
+/* ---------------- BEEP & VOICE ---------------- */
 const beep = () => {
   const audio = new Audio("/beep.mp3");
-  audio.play();
+  audio.play().catch(() => { }); // Catch error if audio file missing
+};
+
+const speak = (text: string) => {
+  if (typeof window !== "undefined" && window.speechSynthesis) {
+    window.speechSynthesis.cancel(); // Stop any current speech
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+  }
 };
 
 export default function SalesPage() {
@@ -26,6 +36,11 @@ export default function SalesPage() {
   const [total, setTotal] = useState(0);
   const [showScanner, setShowScanner] = useState(false);
   const [flash, setFlash] = useState(false);
+  const [scanStatus, setScanStatus] = useState("");
+  const [activeBuffer, setActiveBuffer] = useState("");
+  const [isCameraLoading, setIsCameraLoading] = useState(false);
+  const [availableCameras, setAvailableCameras] = useState<any[]>([]);
+  const [currentCameraIndex, setCurrentCameraIndex] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -50,11 +65,18 @@ export default function SalesPage() {
     );
 
     if (!res.ok) {
-      alert("Product not found");
+      setScanStatus(`❌ Product not found: ${code}`);
+      speak("Product not found");
+      setTimeout(() => setScanStatus(""), 3000);
       return;
     }
 
     const product = await res.json();
+    setScanStatus(`✅ Added: ${product.name}`);
+    setTimeout(() => setScanStatus(""), 2000);
+    beep();
+    speak(product.name);
+    flashSuccess();
 
     setItems((prev) => {
       const exists = prev.find((i) => i.barcode === code);
@@ -188,25 +210,151 @@ export default function SalesPage() {
     win.print();
   };
 
+  /* ---------------- GLOBAL SCANNER LISTENER ---------------- */
+  useEffect(() => {
+    let buffer = "";
+    let timeout: NodeJS.Timeout;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Ignore if typing in other inputs we don't want to scan into
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        // If it's a specific input, we only allow scanning if it's the barcode input
+        if (!target.classList.contains("barcode-input")) {
+          // If user is editing price or qty, we might want to ignore scanning to prevent errors
+          // But usually, scanners should work globally. 
+          // Let's check how long it's been since the last key.
+        }
+      }
+
+      // 2. Hardware scanners usually send characters very fast
+      if (e.key === "Enter") {
+        if (buffer.length > 2) {
+          console.log("Scanned Barcode:", buffer);
+          fetchProduct(buffer);
+          buffer = "";
+        }
+        return;
+      }
+
+      // 3. Buffer keys (Alphanumeric only to avoid control keys)
+      if (e.key.length === 1) {
+        buffer += e.key;
+        setActiveBuffer(buffer);
+
+        // Auto-clear buffer if no new key comes for 500ms
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          // If it looks like a barcode (long enough), try it anyway in case no Enter was sent
+          if (buffer.length >= 8) {
+            console.log("Auto-detecting Barcode:", buffer);
+            fetchProduct(buffer);
+          }
+          buffer = "";
+          setActiveBuffer("");
+        }, 500);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      clearTimeout(timeout);
+    };
+  }, [token]);
+
   /* ---------------- CAMERA SCANNER ---------------- */
   useEffect(() => {
     if (!showScanner || !videoRef.current) return;
 
     const reader = new BrowserMultiFormatReader();
+    let controls: any;
 
-    reader
-      .decodeOnceFromVideoDevice(undefined, videoRef.current)
-      .then((result) => {
-        beep();
-        flashSuccess();
-        fetchProduct(result.getText());
+    const startScanner = async () => {
+      setIsCameraLoading(true);
+      try {
+        const videoDevices = await BrowserMultiFormatReader.listVideoInputDevices();
+        setAvailableCameras(videoDevices);
+
+        if (videoDevices.length === 0) {
+          setScanStatus("❌ No camera found on this device");
+          setShowScanner(false);
+          return;
+        }
+
+        if (availableCameras.length === 0) setAvailableCameras(videoDevices);
+
+        // Initially select back camera ONLY if currentCameraIndex is 0 and we have more devices
+        const backCameraIdx = videoDevices.findIndex(d =>
+          d.label.toLowerCase().includes("back") ||
+          d.label.toLowerCase().includes("rear") ||
+          d.label.toLowerCase().includes("environment") ||
+          d.label.toLowerCase().includes("facing")
+        );
+
+        let selectedIndex = currentCameraIndex;
+        if (currentCameraIndex === 0 && videoDevices.length > 1) {
+          if (backCameraIdx !== -1) {
+            selectedIndex = backCameraIdx;
+            setCurrentCameraIndex(selectedIndex);
+          }
+        }
+
+        const deviceId = videoDevices[selectedIndex]?.deviceId || videoDevices[0].deviceId;
+
+        setIsCameraLoading(false);
+        // Use the currentCameraIndex to get the device
+        const finalDeviceId = videoDevices[currentCameraIndex]?.deviceId || deviceId;
+
+        // Use continuous decoding with HD constraints if supported
+        const constraints: MediaStreamConstraints = {
+          video: {
+            deviceId: finalDeviceId,
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: backCameraIdx !== -1 ? "environment" : "user"
+          }
+        };
+
+        console.log("Starting scanner with device:", finalDeviceId);
+
+        controls = await reader.decodeFromVideoDevice(
+          finalDeviceId,
+          videoRef.current!,
+          (result) => {
+            if (result) {
+              const code = result.getText();
+              console.log("Camera Scan Result:", code);
+              fetchProduct(code);
+              if (controls) controls.stop();
+              setShowScanner(false);
+            }
+          }
+        );
+      } catch (err: any) {
+        console.error("Scanner error:", err);
+        setIsCameraLoading(false);
+        setScanStatus(`❌ Camera Error: ${err.message || "Access denied"}`);
         setShowScanner(false);
-      })
-      .catch((err) => {
-        console.error("Scan error:", err);
-        setShowScanner(false);
-      });
-  }, [showScanner]);
+      }
+    };
+
+    startScanner();
+
+    return () => {
+      if (controls) controls.stop();
+    };
+  }, [showScanner, currentCameraIndex]);
+
+  const switchCamera = () => {
+    if (availableCameras.length < 2) return;
+    const nextIndex = (currentCameraIndex + 1) % availableCameras.length;
+    setCurrentCameraIndex(nextIndex);
+  };
 
   return (
     <div className="sales-container">
@@ -218,6 +366,21 @@ export default function SalesPage() {
         subtitle={`Bill: ${billNo}`}
         icon="receipt-cutoff"
       />
+
+      {/* SCAN STATUS MESSAGE */}
+      {scanStatus && (
+        <div className={`status-toast ${scanStatus.includes('❌') ? 'error' : 'success'}`}>
+          {scanStatus}
+        </div>
+      )}
+
+      {/* ACTIVE BUFFER DEBUG (Only visible if something is being scanned) */}
+      {activeBuffer && (
+        <div className="active-scan-indicator">
+          <i className="bi bi-broadcast"></i>
+          Scanning: <span>{activeBuffer}</span>...
+        </div>
+      )}
 
       {/* INPUT BAR */}
       <div className="input-card">
@@ -259,18 +422,52 @@ export default function SalesPage() {
         </div>
       </div>
 
-      {/* CAMERA MODAL */}
       {showScanner && (
         <div className="scanner-modal">
           <div className="scanner-content">
-            <video ref={videoRef} className="scanner-video" />
-            <button
-              className="scanner-close"
-              onClick={() => setShowScanner(false)}
-            >
-              <i className="bi bi-x-lg"></i>
-              Close Scanner
-            </button>
+            {isCameraLoading && (
+              <div className="camera-loader">
+                <div className="spinner"></div>
+                <p>Starting Camera...</p>
+              </div>
+            )}
+            <div className="video-wrapper">
+              <video
+                ref={videoRef}
+                className="scanner-video"
+                muted
+                playsInline
+                style={{ display: isCameraLoading ? 'none' : 'block' }}
+              />
+              {!isCameraLoading && <div className="scanner-focus-box"></div>}
+            </div>
+
+            <div className="scanner-actions">
+              {availableCameras.length > 1 && (
+                <button className="btn-switch-camera" onClick={switchCamera}>
+                  <i className="bi bi-camera-rotate"></i>
+                  Switch
+                </button>
+              )}
+              <button
+                className="btn-manual-entry"
+                onClick={() => {
+                  setShowScanner(false);
+                  const input = document.querySelector('.barcode-input') as HTMLInputElement;
+                  if (input) input.focus();
+                }}
+              >
+                <i className="bi bi-keyboard"></i>
+                Type
+              </button>
+              <button
+                className="scanner-close"
+                onClick={() => setShowScanner(false)}
+              >
+                <i className="bi bi-x-lg"></i>
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -370,6 +567,53 @@ export default function SalesPage() {
         @keyframes flash {
           0%, 100% { opacity: 0; }
           50% { opacity: 1; }
+        }
+
+        /* STATUS TOAST */
+        .status-toast {
+          position: fixed;
+          top: 2rem;
+          right: 2rem;
+          padding: 1rem 2rem;
+          border-radius: 12px;
+          color: white;
+          font-weight: 700;
+          z-index: 2000;
+          animation: slideInRight 0.3s ease-out;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .status-toast.success { background: #38ef7d; }
+        .status-toast.error { background: #f5576c; }
+
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* ACTIVE SCAN INDICATOR */
+        .active-scan-indicator {
+          position: absolute;
+          top: 100px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(102, 126, 234, 0.9);
+          padding: 0.5rem 1.5rem;
+          border-radius: 30px;
+          color: white;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          z-index: 100;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .active-scan-indicator span {
+          font-family: monospace;
+          background: rgba(0,0,0,0.2);
+          padding: 0.1rem 0.4rem;
+          border-radius: 4px;
         }
 
         /* INPUT CARD */
@@ -483,10 +727,12 @@ export default function SalesPage() {
         }
 
         .scanner-content {
-          background: white;
+          background: #1a1a2e;
           border-radius: 16px;
           padding: 1.5rem;
           box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+          position: relative;
+          border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
         .scanner-video {
@@ -494,6 +740,100 @@ export default function SalesPage() {
           height: 300px;
           border-radius: 12px;
           background: black;
+          object-fit: cover;
+        }
+
+        .camera-loader {
+          width: 400px;
+          height: 300px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 1rem;
+          color: white;
+        }
+
+        .spinner {
+          width: 40px;
+          height: 40px;
+          border: 4px solid rgba(255, 255, 255, 0.1);
+          border-top: 4px solid #667eea;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        /* SCAN LINE ANIMATION */
+        .scanner-content::after {
+          content: "";
+          position: absolute;
+          top: 1.5rem;
+          left: 1.5rem;
+          right: 1.5rem;
+          height: 2px;
+          background: rgba(56, 239, 125, 0.8);
+          box-shadow: 0 0 15px rgba(56, 239, 125, 1);
+          animation: scanMove 2s linear infinite;
+          pointer-events: none;
+          z-index: 10;
+        }
+
+        .video-wrapper {
+          position: relative;
+          overflow: hidden;
+          border-radius: 12px;
+        }
+
+        .scanner-focus-box {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 70%;
+          height: 40%;
+          border: 2px dashed rgba(56, 239, 125, 0.5);
+          border-radius: 8px;
+          pointer-events: none;
+        }
+
+        .scanner-actions {
+          display: flex;
+          gap: 1rem;
+          margin-top: 1rem;
+        }
+
+        .btn-switch-camera,
+        .btn-manual-entry {
+          flex: 1;
+          padding: 0.875rem;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          color: white;
+          font-weight: 700;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          transition: all 0.3s ease;
+          white-space: nowrap;
+        }
+
+        .btn-switch-camera:hover,
+        .btn-manual-entry:hover {
+          background: rgba(255, 255, 255, 0.1);
+          transform: translateY(-2px);
+        }
+
+        @keyframes scanMove {
+          0% { top: 1.5rem; }
+          100% { top: calc(300px + 1.5rem); }
         }
 
         .scanner-close {
