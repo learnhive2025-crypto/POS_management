@@ -22,7 +22,7 @@ export default function StaffPage() {
   /* ---------------- FETCH STAFF ---------------- */
   const fetchStaff = async () => {
     setLoading(true);
-    const res = await fetch("https://mythra-backend.onrender.com/staff/list", {
+    const res = await fetch("https://mythra-shop-dev.onrender.com/staff/list", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
@@ -39,8 +39,8 @@ export default function StaffPage() {
     e.preventDefault();
 
     const url = editId
-      ? `https://mythra-backend.onrender.com/staff/update/${editId}`
-      : "https://mythra-backend.onrender.com/staff/create";
+      ? `https://mythra-shop-dev.onrender.com/staff/update/${editId}`
+      : "https://mythra-shop-dev.onrender.com/staff/create";
 
     const method = editId ? "PUT" : "POST";
 
@@ -65,7 +65,7 @@ export default function StaffPage() {
   const deleteStaff = async (id: string) => {
     if (!confirm("Delete this staff member?")) return;
 
-    await fetch(`https://mythra-backend.onrender.com/staff/delete/${id}`, {
+    await fetch(`https://mythra-shop-dev.onrender.com/staff/delete/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });

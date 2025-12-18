@@ -22,7 +22,7 @@ export default function ProfitPage() {
   /* ---------------- FETCH PROFIT ---------------- */
   const fetchProfit = async () => {
     setLoading(true);
-    const res = await fetch("https://mythra-backend.onrender.com/profit/product-wise", {
+    const res = await fetch("https://mythra-shop-dev.onrender.com/profit/product-wise", {
       headers: {
         Authorization: `Bearer ${token}`,
       },

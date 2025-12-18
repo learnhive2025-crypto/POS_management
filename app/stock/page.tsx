@@ -24,7 +24,7 @@ export default function StockPage() {
   /* ---------------- FETCH STOCK SUMMARY ---------------- */
   const fetchStockSummary = async () => {
     setLoading(true);
-    const res = await fetch("https://mythra-backend.onrender.com/stock/summary", {
+    const res = await fetch("https://mythra-shop-dev.onrender.com/stock/summary", {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -38,7 +38,7 @@ export default function StockPage() {
   /* ---------------- FETCH LOW STOCK ---------------- */
   const fetchLowStock = async () => {
     const res = await fetch(
-      `https://mythra-backend.onrender.com/stock/low-stock?threshold=${threshold}`,
+      `https://mythra-shop-dev.onrender.com/stock/low-stock?threshold=${threshold}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

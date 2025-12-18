@@ -38,7 +38,7 @@ export default function PurchasePage() {
   /* ---------------- FETCH DATA ---------------- */
   const fetchPurchases = async () => {
     setLoading(true);
-    const res = await fetch("https://mythra-backend.onrender.com/purchases/list", {
+    const res = await fetch("https://mythra-shop-dev.onrender.com/purchases/list", {
       headers: { Authorization: `Bearer ${token}` },
     });
     setPurchases(await res.json());
@@ -46,7 +46,7 @@ export default function PurchasePage() {
   };
 
   const fetchProducts = async () => {
-    const res = await fetch("https://mythra-backend.onrender.com/products/list", {
+    const res = await fetch("https://mythra-shop-dev.onrender.com/products/list", {
       headers: { Authorization: `Bearer ${token}` },
     });
     setProducts(await res.json());
@@ -101,8 +101,8 @@ export default function PurchasePage() {
     }
 
     const url = editId
-      ? `https://mythra-backend.onrender.com/purchases/update/${editId}`
-      : "https://mythra-backend.onrender.com/purchases/add";
+      ? `https://mythra-shop-dev.onrender.com/purchases/update/${editId}`
+      : "https://mythra-shop-dev.onrender.com/purchases/add";
 
     await fetch(url, {
       method: editId ? "PUT" : "POST",
@@ -125,7 +125,7 @@ export default function PurchasePage() {
   const deletePurchase = async (id: string) => {
     if (!confirm("Delete this purchase?")) return;
 
-    await fetch(`https://mythra-backend.onrender.com/purchases/delete/${id}`, {
+    await fetch(`https://mythra-shop-dev.onrender.com/purchases/delete/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -135,7 +135,7 @@ export default function PurchasePage() {
 
   /* ---------------- EDIT ---------------- */
   const editPurchase = async (id: string) => {
-    const res = await fetch(`https://mythra-backend.onrender.com/purchases/${id}`, {
+    const res = await fetch(`https://mythra-shop-dev.onrender.com/purchases/${id}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();

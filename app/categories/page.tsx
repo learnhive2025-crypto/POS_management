@@ -26,7 +26,7 @@ export default function CategoriesPage() {
   /* ---------------- FETCH CATEGORIES ---------------- */
   const fetchCategories = async () => {
     setLoading(true);
-    const res = await fetch("https://mythra-backend.onrender.com/categories/list", {
+    const res = await fetch("https://mythra-shop-dev.onrender.com/categories/list", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
@@ -48,8 +48,8 @@ export default function CategoriesPage() {
     e.preventDefault();
 
     const url = editId
-      ? `https://mythra-backend.onrender.com/categories/update/${editId}`
-      : "https://mythra-backend.onrender.com/categories/add";
+      ? `https://mythra-shop-dev.onrender.com/categories/update/${editId}`
+      : "https://mythra-shop-dev.onrender.com/categories/add";
 
     const method = editId ? "PUT" : "POST";
     const body: any = editId ? { name, is_active: true } : { name };
@@ -71,7 +71,7 @@ export default function CategoriesPage() {
   const deleteCategory = async (id: string) => {
     if (!confirm("Delete this category?")) return;
 
-    await fetch(`https://mythra-backend.onrender.com/categories/delete/${id}`, {
+    await fetch(`https://mythra-shop-dev.onrender.com/categories/delete/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });

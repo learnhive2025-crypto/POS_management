@@ -23,7 +23,7 @@ export default function AdminPage() {
   /* ---------------- FETCH ADMINS ---------------- */
   const fetchAdmins = async () => {
     setLoading(true);
-    const res = await fetch("https://mythra-backend.onrender.com/admin/list", {
+    const res = await fetch("https://mythra-shop-dev.onrender.com/admin/list", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
@@ -40,8 +40,8 @@ export default function AdminPage() {
     e.preventDefault();
 
     const url = editId
-      ? `https://mythra-backend.onrender.com/admin/update/${editId}`
-      : "https://mythra-backend.onrender.com/admin/create";
+      ? `https://mythra-shop-dev.onrender.com/admin/update/${editId}`
+      : "https://mythra-shop-dev.onrender.com/admin/create";
 
     const method = editId ? "PUT" : "POST";
 
@@ -66,7 +66,7 @@ export default function AdminPage() {
   const deleteAdmin = async (id: string) => {
     if (!confirm("Delete this admin?")) return;
 
-    await fetch(`https://mythra-backend.onrender.com/admin/delete/${id}`, {
+    await fetch(`https://mythra-shop-dev.onrender.com/admin/delete/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });

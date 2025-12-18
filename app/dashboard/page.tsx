@@ -41,9 +41,9 @@ export default function DashboardPage() {
     const headers = { Authorization: `Bearer ${token}` };
 
     Promise.all([
-      fetch("https://mythra-backend.onrender.com/dashboard/summary", { headers }).then(res => res.json()),
-      fetch("https://mythra-backend.onrender.com/dashboard/sales-analysis", { headers }).then(res => res.json()),
-      fetch("https://mythra-backend.onrender.com/dashboard/top-products", { headers }).then(res => res.json()),
+      fetch("https://mythra-shop-dev.onrender.com/dashboard/summary", { headers }).then(res => res.json()),
+      fetch("https://mythra-shop-dev.onrender.com/dashboard/sales-analysis", { headers }).then(res => res.json()),
+      fetch("https://mythra-shop-dev.onrender.com/dashboard/top-products", { headers }).then(res => res.json()),
     ]).then(([summaryData, analysisData, topData]) => {
       setSummary(summaryData);
       setAnalysis(analysisData);

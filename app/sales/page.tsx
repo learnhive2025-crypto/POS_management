@@ -43,7 +43,7 @@ export default function SalesPage() {
   /* ---------------- FETCH PRODUCT ---------------- */
   const fetchProduct = async (code: string) => {
     const res = await fetch(
-      `https://mythra-backend.onrender.com/products/by-barcode/${code}`,
+      `https://mythra-shop-dev.onrender.com/products/by-barcode/${code}`,
       {
         headers: { Authorization: `Bearer ${token}` },
       }
@@ -108,7 +108,7 @@ export default function SalesPage() {
       return;
     }
 
-    await fetch("https://mythra-backend.onrender.com/sales/add", {
+    await fetch("https://mythra-shop-dev.onrender.com/sales/add", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

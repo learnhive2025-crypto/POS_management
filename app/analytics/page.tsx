@@ -23,7 +23,7 @@ export default function AnalyticsPage() {
   const fetchSlowMoving = async () => {
     setLoading(true);
     const res = await fetch(
-      `https://mythra-backend.onrender.com/analytics/slow-moving?days=${days}`,
+      `https://mythra-shop-dev.onrender.com/analytics/slow-moving?days=${days}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

@@ -35,7 +35,7 @@ export default function ProductsPage() {
   /* ---------------- FETCH PRODUCTS ---------------- */
   const fetchProducts = async () => {
     setLoading(true);
-    const res = await fetch("https://mythra-backend.onrender.com/products/list", {
+    const res = await fetch("https://mythra-shop-dev.onrender.com/products/list", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
@@ -45,7 +45,7 @@ export default function ProductsPage() {
 
   /* ---------------- FETCH CATEGORIES ---------------- */
   const fetchCategories = async () => {
-    const res = await fetch("https://mythra-backend.onrender.com/categories/list", {
+    const res = await fetch("https://mythra-shop-dev.onrender.com/categories/list", {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();
@@ -75,8 +75,8 @@ export default function ProductsPage() {
     e.preventDefault();
 
     const url = editId
-      ? `https://mythra-backend.onrender.com/products/update/${editId}`
-      : "https://mythra-backend.onrender.com/products/add";
+      ? `https://mythra-shop-dev.onrender.com/products/update/${editId}`
+      : "https://mythra-shop-dev.onrender.com/products/add";
 
     const method = editId ? "PUT" : "POST";
 
@@ -105,7 +105,7 @@ export default function ProductsPage() {
   const deleteProduct = async (id: string) => {
     if (!confirm("Delete this product?")) return;
 
-    await fetch(`https://mythra-backend.onrender.com/products/delete/${id}`, {
+    await fetch(`https://mythra-shop-dev.onrender.com/products/delete/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -144,7 +144,7 @@ export default function ProductsPage() {
         icon="box-seam"
       >
         <div className="header-actions">
-          <button className="btn-export-excel" onClick={() => window.open("https://mythra-backend.onrender.com/excel/download-products", "_blank")}>
+          <button className="btn-export-excel" onClick={() => window.open("https://mythra-shop-dev.onrender.com/excel/download-products", "_blank")}>
             <i className="bi bi-file-earmark-excel-fill"></i>
             <span>Export Excel</span>
           </button>

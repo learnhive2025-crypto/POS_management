@@ -43,7 +43,7 @@ export default function ReportsPage() {
   /* ---------------- FETCH DATA ---------------- */
   const fetchSlow = async () => {
     const res = await fetch(
-      "https://mythra-backend.onrender.com/analytics/slow-moving",
+      "https://mythra-shop-dev.onrender.com/analytics/slow-moving",
       { headers: { Authorization: `Bearer ${token}` } }
     );
     setSlow(await res.json());
@@ -51,7 +51,7 @@ export default function ReportsPage() {
 
   const fetchRestock = async () => {
     const res = await fetch(
-      "https://mythra-backend.onrender.com/analytics/restock-suggestions",
+      "https://mythra-shop-dev.onrender.com/analytics/restock-suggestions",
       { headers: { Authorization: `Bearer ${token}` } }
     );
     setRestock(await res.json());
@@ -59,7 +59,7 @@ export default function ReportsPage() {
 
   const fetchDemand = async () => {
     const res = await fetch(
-      "https://mythra-backend.onrender.com/analytics/demand-prediction",
+      "https://mythra-shop-dev.onrender.com/analytics/demand-prediction",
       { headers: { Authorization: `Bearer ${token}` } }
     );
     setDemand(await res.json());
