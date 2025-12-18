@@ -144,7 +144,7 @@ export default function ProductsPage() {
         icon="box-seam"
       >
         <div className="header-actions">
-          <button className="btn-export-excel" onClick={() => window.open("https://mythra-shop-dev.onrender.com/excel/download-products", "_blank")}>
+          <button className="btn-export-excel" onClick={() => window.open("https://mythra-shop-dev.onrender.com/download-products", "_blank")}>
             <i className="bi bi-file-earmark-excel-fill"></i>
             <span>Export Excel</span>
           </button>
