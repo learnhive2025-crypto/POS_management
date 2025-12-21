@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 
@@ -27,10 +28,12 @@ type TopProduct = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [analysis, setAnalysis] = useState<SalesAnalysis | null>(null);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const token =
     typeof window !== "undefined"
@@ -40,17 +43,39 @@ export default function DashboardPage() {
   useEffect(() => {
     const headers = { Authorization: `Bearer ${token}` };
 
+    const handleUnauthorized = () => {
+      localStorage.clear();
+      router.push("/login");
+    };
+
+    const fetchJson = async (url: string) => {
+      const res = await fetch(url, { headers });
+      if (res.status === 401) {
+        handleUnauthorized();
+        throw new Error("Unauthorized");
+      }
+      if (!res.ok) throw new Error(`Failed to fetch from ${url}`);
+      return res.json();
+    };
+
     Promise.all([
-      fetch("https://mythra-shop-dev.onrender.com/dashboard/summary", { headers }).then(res => res.json()),
-      fetch("https://mythra-shop-dev.onrender.com/dashboard/sales-analysis", { headers }).then(res => res.json()),
-      fetch("https://mythra-shop-dev.onrender.com/dashboard/top-products", { headers }).then(res => res.json()),
-    ]).then(([summaryData, analysisData, topData]) => {
-      setSummary(summaryData);
-      setAnalysis(analysisData);
-      setTopProducts(topData);
-      setLoading(false);
-    });
-  }, []);
+      fetchJson("https://mythra-shop-dev.onrender.com/dashboard/summary"),
+      fetchJson("https://mythra-shop-dev.onrender.com/dashboard/sales-analysis"),
+      fetchJson("https://mythra-shop-dev.onrender.com/dashboard/top-products"),
+    ])
+      .then(([summaryData, analysisData, topData]) => {
+        setSummary(summaryData);
+        setAnalysis(analysisData);
+        // Ensure topData is an array before setting state
+        setTopProducts(Array.isArray(topData) ? topData : []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Dashboard fetch error:", err);
+        setError("Failed to load dashboard data. Please try again later.");
+        setLoading(false);
+      });
+  }, [token]);
 
   if (loading) {
     return (
@@ -74,6 +99,46 @@ export default function DashboardPage() {
             color: #0364e2ff;
             margin-top: 1rem;
             font-size: 1.1rem;
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-container">
+        <div className="error-state">
+          <i className="bi bi-exclamation-triangle-fill"></i>
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()} className="retry-btn">
+            Retry
+          </button>
+        </div>
+        <style jsx>{`
+          .dashboard-container {
+            min-height: 80vh;
+            background-color: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          }
+          .error-state {
+            text-align: center;
+            color: #dc3545;
+          }
+          .error-state i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+          }
+          .retry-btn {
+            margin-top: 1rem;
+            padding: 0.5rem 1.5rem;
+            background-color: #0364e2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
           }
         `}</style>
       </div>
