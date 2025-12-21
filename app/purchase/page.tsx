@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import PageHeader from "../components/PageHeader";
 import Modal from "../components/Modal";
 
 type Product = {
-  _id: string;
+  id: string;
   name: string;
   purchase_price?: number;
 };
@@ -17,9 +18,11 @@ type Item = {
 };
 
 export default function PurchasePage() {
+  const router = useRouter();
   const [purchases, setPurchases] = useState<any[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -36,20 +39,58 @@ export default function PurchasePage() {
       : "";
 
   /* ---------------- FETCH DATA ---------------- */
+  const handleUnauthorized = () => {
+    localStorage.clear();
+    router.push("/login");
+  };
+
+  const fetchJson = async (url: string, options: RequestInit = {}) => {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (res.status === 401) {
+      handleUnauthorized();
+      throw new Error("Unauthorized");
+    }
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || `Failed to fetch from ${url}`);
+    }
+
+    return res.json();
+  };
+
   const fetchPurchases = async () => {
     setLoading(true);
-    const res = await fetch("https://mythra-shop-dev.onrender.com/purchases/list", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setPurchases(await res.json());
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await fetchJson("https://mythra-shop-dev.onrender.com/purchases/list");
+      setPurchases(data);
+    } catch (err: any) {
+      if (err.message !== "Unauthorized") {
+        console.error("Fetch purchases error:", err);
+        setError("Failed to load purchases.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchProducts = async () => {
-    const res = await fetch("https://mythra-shop-dev.onrender.com/products/list", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setProducts(await res.json());
+    try {
+      const data = await fetchJson("https://mythra-shop-dev.onrender.com/products/list");
+      setProducts(data);
+    } catch (err: any) {
+      if (err.message !== "Unauthorized") {
+        console.error("Fetch products error:", err);
+      }
+    }
   };
 
   useEffect(() => {
@@ -72,7 +113,7 @@ export default function PurchasePage() {
   };
 
   const handleProductSelect = (index: number, productId: string) => {
-    const product = products.find((p) => p._id === productId);
+    const product = products.find((p) => p.id === productId);
     const copy = [...items];
     copy[index].product_id = productId;
     copy[index].price = product?.purchase_price || 0;
@@ -104,47 +145,56 @@ export default function PurchasePage() {
       ? `https://mythra-shop-dev.onrender.com/purchases/update/${editId}`
       : "https://mythra-shop-dev.onrender.com/purchases/add";
 
-    await fetch(url, {
-      method: editId ? "PUT" : "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        invoice_no: invoiceNo,
-        supplier_name: supplierName,
-        items,
-      }),
-    });
+    try {
+      await fetchJson(url, {
+        method: editId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          invoice_no: invoiceNo,
+          supplier_name: supplierName,
+          items,
+        }),
+      });
 
-    resetForm();
-    fetchPurchases();
+      resetForm();
+      fetchPurchases();
+    } catch (err: any) {
+      if (err.message !== "Unauthorized") {
+        alert(err.message);
+      }
+    }
   };
 
   /* ---------------- DELETE ---------------- */
   const deletePurchase = async (id: string) => {
     if (!confirm("Delete this purchase?")) return;
 
-    await fetch(`https://mythra-shop-dev.onrender.com/purchases/delete/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    fetchPurchases();
+    try {
+      await fetchJson(`https://mythra-shop-dev.onrender.com/purchases/delete/${id}`, {
+        method: "DELETE",
+      });
+      fetchPurchases();
+    } catch (err: any) {
+      if (err.message !== "Unauthorized") {
+        alert(err.message);
+      }
+    }
   };
 
   /* ---------------- EDIT ---------------- */
   const editPurchase = async (id: string) => {
-    const res = await fetch(`https://mythra-shop-dev.onrender.com/purchases/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-
-    setEditId(id);
-    setInvoiceNo(data.invoice_no);
-    setSupplierName(data.supplier_name);
-    setItems(data.items);
-    setShowForm(true);
+    try {
+      const data = await fetchJson(`https://mythra-shop-dev.onrender.com/purchases/${id}`);
+      setEditId(id);
+      setInvoiceNo(data.invoice_no);
+      setSupplierName(data.supplier_name);
+      setItems(data.items);
+      setShowForm(true);
+    } catch (err: any) {
+      if (err.message !== "Unauthorized") {
+        alert("Failed to load purchase details.");
+      }
+    }
   };
 
   const resetForm = () => {
@@ -316,12 +366,12 @@ export default function PurchasePage() {
                           <option value="">Select product</option>
                           {products.map((p) => {
                             const disabled = items.some(
-                              (it, idx) => it.product_id === p._id && idx !== i
+                              (it, idx) => it.product_id === p.id && idx !== i
                             );
                             return (
                               <option
-                                key={p._id}
-                                value={p._id}
+                                key={p.id}
+                                value={p.id}
                                 disabled={disabled}
                               >
                                 {p.name}
