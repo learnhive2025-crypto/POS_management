@@ -27,11 +27,23 @@ type TopProduct = {
   sold_qty: number;
 };
 
+
+
+type Expense = {
+  amount: number;
+};
+
+type Purchase = {
+  items: { qty: number }[];
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [analysis, setAnalysis] = useState<SalesAnalysis | null>(null);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [totalExpense, setTotalExpense] = useState(0);
+  const [totalPurchaseQty, setTotalPurchaseQty] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,12 +74,33 @@ export default function DashboardPage() {
       fetchJson("https://mythra-shop-dev.onrender.com/dashboard/summary"),
       fetchJson("https://mythra-shop-dev.onrender.com/dashboard/sales-analysis"),
       fetchJson("https://mythra-shop-dev.onrender.com/dashboard/top-products"),
+      fetchJson("https://mythra-shop-dev.onrender.com/expenses/list"),
+      fetchJson("https://mythra-shop-dev.onrender.com/purchases/list"),
     ])
-      .then(([summaryData, analysisData, topData]) => {
+      .then(([summaryData, analysisData, topData, expensesData, purchasesData]) => {
         setSummary(summaryData);
         setAnalysis(analysisData);
         // Ensure topData is an array before setting state
         setTopProducts(Array.isArray(topData) ? topData : []);
+
+
+        // Calculate total expense
+        const expenses: Expense[] = Array.isArray(expensesData) ? expensesData : [];
+        const totalExp = expenses.reduce((sum, item) => sum + (item.amount || 0), 0);
+        setTotalExpense(totalExp);
+
+        // Calculate total purchase qty
+        console.log("Purchases Data:", purchasesData);
+        const purchases: Purchase[] = Array.isArray(purchasesData) ? purchasesData : [];
+        let totalQty = 0;
+        purchases.forEach(p => {
+          if (Array.isArray(p.items)) {
+            p.items.forEach(item => totalQty += (item.qty || 0));
+          }
+        });
+        console.log("Calculated Total Qty:", totalQty);
+        setTotalPurchaseQty(totalQty);
+
         setLoading(false);
       })
       .catch(err => {
@@ -181,11 +214,10 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* INVENTORY & SALES */}
       <div className="stats-grid-2">
         <StatCard
           title="Purchase Quantity"
-          value={summary?.purchase_qty || 0}
+          value={totalPurchaseQty}
           icon="cart-plus-fill"
           gradient="info"
         />
@@ -200,6 +232,12 @@ export default function DashboardPage() {
           value={`₹${summary?.total_revenue || 0}`}
           icon="currency-rupee"
           gradient="warning"
+        />
+        <StatCard
+          title="Total Expenses"
+          value={`₹${totalExpense.toFixed(2)}`}
+          icon="wallet2"
+          gradient="danger"
         />
       </div>
 
