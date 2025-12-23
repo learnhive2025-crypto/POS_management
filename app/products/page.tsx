@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import PageHeader from "../components/PageHeader";
 import Modal from "../components/Modal";
 
 export default function ProductsPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -34,22 +36,45 @@ export default function ProductsPage() {
 
   /* ---------------- FETCH PRODUCTS ---------------- */
   const fetchProducts = async () => {
+    if (!token) {
+      router.push("/login");
+      return;
+    }
     setLoading(true);
-    const res = await fetch("https://mythra-shop-dev.onrender.com/products/list", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    setProducts(data);
+    try {
+      const res = await fetch("https://mythra-shop-dev.onrender.com/products/list", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 401) {
+        localStorage.removeItem("access_token");
+        router.push("/login");
+        return;
+      }
+
+      const data = await res.json();
+      setProducts(data);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    }
     setLoading(false);
   };
 
   /* ---------------- FETCH CATEGORIES ---------------- */
   const fetchCategories = async () => {
-    const res = await fetch("https://mythra-shop-dev.onrender.com/categories/list", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    setCategories(data);
+    if (!token) return;
+    try {
+      const res = await fetch("https://mythra-shop-dev.onrender.com/categories/list", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 401) return; // handled by fetchProducts usually
+
+      const data = await res.json();
+      setCategories(data);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
   };
 
   useEffect(() => {
@@ -88,14 +113,24 @@ export default function ProductsPage() {
       stock_qty: Number(stockQty),
     };
 
-    await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify(body),
-    });
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (res.status === 401) {
+        localStorage.removeItem("access_token");
+        router.push("/login");
+        return;
+      }
+    } catch (error) {
+      console.error("Error saving product:", error);
+    }
 
     resetForm();
     fetchProducts();
@@ -105,10 +140,20 @@ export default function ProductsPage() {
   const deleteProduct = async (id: string) => {
     if (!confirm("Delete this product?")) return;
 
-    await fetch(`https://mythra-shop-dev.onrender.com/products/delete/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    try {
+      const res = await fetch(`https://mythra-shop-dev.onrender.com/products/delete/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 401) {
+        localStorage.removeItem("access_token");
+        router.push("/login");
+        return;
+      }
+    } catch (error) {
+      console.error("Error deleting product:", error);
+    }
 
     fetchProducts();
   };

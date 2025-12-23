@@ -94,6 +94,12 @@ export default function Sidebar() {
               isActive={pathname === "/products"}
             />
             <SidebarItem
+              href="/barcode-list"
+              label="Barcode List"
+              icon="upc-scan"
+              isActive={pathname === "/barcode-list"}
+            />
+            <SidebarItem
               href="/categories"
               label="Categories"
               icon="grid"
